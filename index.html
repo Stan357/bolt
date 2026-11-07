@@ -54,7 +54,7 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
 .tabs button.on{border-color:var(--acc2);font-weight:600}
 .q{display:flex;align-items:center;gap:12px;width:100%;background:var(--card);border:2px solid transparent;border-radius:16px;padding:12px 14px;margin-bottom:8px;text-align:left;cursor:pointer}
 .q:focus-visible,.tabs button:focus-visible,.btn:focus-visible{outline:3px solid var(--acc2)}
-.q.on{border-color:var(--acc2)}
+.q.on{border-color:var(--acc2)}.q.off{opacity:.45}
 .q .ic{font-size:24px}.q .t{flex:1}
 .q .t small{display:block;color:var(--mute);font-size:13px}
 .q .x{font-weight:600;color:var(--acc2);white-space:nowrap}
@@ -114,10 +114,10 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
 <script>
 const DEF=[
  {id:'study',n:'Studeren (2 uur)',xp:20,ic:'📚',say:'Slim, slimmer, Bolt-slimst! 🤓'},
- {id:'class',n:'Naar de les',xp:15,cap:5,ic:'🎓',say:'Les gehaald! Ik ben zo trots.'},
+ {id:'class',n:'Naar de les',xp:15,cap:5,days:[1,2,3,4,5],ic:'🎓',say:'Les gehaald! Ik ben zo trots.'},
  {id:'gym',n:'Gym',xp:20,cap:5,ic:'🏋️',say:'Spierballen aan! 💪'},
  {id:'run',n:'Gaan lopen',xp:25,cap:2,ic:'🏃',say:'Zoef! Wat ben jij snel!'},
- {id:'bike',n:'Gaan fietsen',xp:30,cap:1,ic:'🚴',say:'Trap trap trap! Wiel-der-wijs!'}];
+ {id:'bike',n:'Gaan fietsen',xp:30,cap:1,days:[0,6],ic:'🚴',say:'Trap trap trap! Wiel-der-wijs!'}];
 const SHOP=[
  {id:'cap',k:'hat',n:'Petje',p:40,ic:'🧢'},{id:'tophat',k:'hat',n:'Hoge hoed',p:60,ic:'🎩'},{id:'crown',k:'hat',n:'Kroon',p:120,ic:'👑'},
  {id:'shades',k:'eyes',n:'Zonnebril',p:50,ic:'🕶️'},{id:'glasses',k:'eyes',n:'Bril',p:30,ic:'👓'},
@@ -139,7 +139,7 @@ function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
  if(!S||!S.done)S={start:ymd(today()),done:{},bonus:{},maxLvl:1};
  S.bonus=S.bonus||{};S.maxLvl=S.maxLvl||1;
  if(S.coins===undefined)S.coins=(S.maxLvl-1)*15+Math.floor(S.maxLvl/5)*60;
- S.tasks=S.tasks||DEF.map(t=>({...t}));S.owned=S.owned||[];S.wear=S.wear||{};S.mute=!!S.mute}
+ S.tasks=S.tasks||DEF.map(t=>({...t}));S.tasks.forEach(t=>{if(t.id==='class'&&!t.days)t.days=[1,2,3,4,5];if(t.id==='bike'&&!t.days)t.days=[0,6]});S.owned=S.owned||[];S.wear=S.wear||{};S.mute=!!S.mute}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 const dayXP=k=>Object.values(S.done[k]||{}).reduce((a,b)=>a+b,0);
 function streak(){let d=today();if(dayXP(ymd(d))<GOAL)d=addD(d,-1);let n=0;
@@ -150,6 +150,9 @@ const wCount=(id,o)=>wDays(o).filter(k=>S.done[k]&&S.done[k][id]!==undefined).le
 const wXP=()=>wDays().reduce((a,k)=>a+dayXP(k),0)+(S.bonus[wDays()[0]]||0);
 const total=()=>Object.keys(S.done).reduce((a,k)=>a+dayXP(k),0)+Object.values(S.bonus).reduce((a,b)=>a+b,0);
 const lvlOf=t=>Math.floor(Math.sqrt(t/40))+1;
+const okDay=(T,d)=>!T.days||T.days.includes((d||today()).getDay());
+const wkEnd=()=>[0,6].includes(today().getDay());
+const xmult=()=>(1+Math.min(streak(),10)*.05)*(wkEnd()?1.5:1);
 const mood=()=>{const m=misses();return m===0?0:m<=2?1:m<=4?2:3};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('s');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('s'),2400)}
 
@@ -232,9 +235,10 @@ function toggle(id){
  const k=ymd(today()),T=S.tasks.find(t=>t.id===id);if(!T)return;S.done[k]=S.done[k]||{};
  if(S.done[k][id]!==undefined){delete S.done[k][id];SND.undo()}
  else{
+  if(!okDay(T)){toast(T.n+': alleen '+(T.days.includes(1)?'van maandag tot vrijdag':'in het weekend'));SND.err();return}
   if(T.cap&&wCount(id)>=T.cap){toast(T.n+': weekdoel van '+T.cap+'x is al gehaald');SND.err();return}
-  const mult=1+Math.min(streak(),10)*.05;S.done[k][id]=Math.round(T.xp*mult);SND.ok();
-  toast('+'+S.done[k][id]+' XP'+(mult>1?' (streak x'+mult.toFixed(2)+')':''));
+  const mult=xmult();S.done[k][id]=Math.round(T.xp*mult);SND.ok();
+  toast('+'+S.done[k][id]+' XP'+(mult>1?' (bonus x'+mult.toFixed(2)+')':''));
   FX=FXD[id]?id:'x';clearTimeout(ft);ft=setTimeout(()=>{FX=null;renderStage()},3500);
   setTimeout(()=>{say(T.say||'Mooi gedaan! ✨',3500);anim('jump')},60);
  }
@@ -247,17 +251,17 @@ function toggle(id){
  save();render()}
 
 /* views */
-function vToday(){const k=ymd(today()),mult=1+Math.min(streak(),10)*.05;
- return '<h2>Quests van vandaag</h2>'+S.tasks.map(T=>{const on=S.done[k]&&S.done[k][T.id]!==undefined;
-  return '<button class="q'+(on?' on':'')+'" data-act="q" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(T.cap?wCount(T.id)+' / '+T.cap+' deze week':'elke dag')+'</small></span><span class="x">+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP</span></button>'}).join('')+
- '<details class="add"><summary>＋ Eigen quest toevoegen</summary><input id="nq" maxlength="30" placeholder="Naam, bijvoorbeeld water drinken"><div class="row"><div><label>XP</label><input id="nx" type="number" min="5" max="50" value="10"></div><div><label>Hoe vaak</label><select id="nf"><option value="0">elke dag</option>'+[1,2,3,4,5,6,7].map(i=>'<option value="'+i+'">'+i+'x per week</option>').join('')+'</select></div><div><label>Icoon</label><input id="ni" maxlength="2" placeholder="⭐"></div></div><button class="btn" data-act="addq">Toevoegen</button>'+
+function vToday(){const k=ymd(today()),mult=xmult();
+ return '<h2>Quests van vandaag</h2>'+(wkEnd()?'<div class="card">🎉 Weekendbonus: al je XP telt vandaag x1,5.</div>':'')+S.tasks.map(T=>{const on=S.done[k]&&S.done[k][T.id]!==undefined,off=!on&&!okDay(T);
+  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="q" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id)+' / '+T.cap+' deze week':T.days?(T.days.includes(1)?'elke werkdag':'elk weekend'):'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+
+ '<details class="add"><summary>＋ Eigen quest toevoegen</summary><input id="nq" maxlength="30" placeholder="Naam, bijvoorbeeld water drinken"><div class="row"><div><label>XP</label><input id="nx" type="number" min="5" max="50" value="10"></div><div><label>Hoe vaak</label><select id="nf"><option value="0">elke dag</option>'+[1,2,3,4,5,6,7].map(i=>'<option value="'+i+'">'+i+'x per week</option>').join('')+'</select></div><div><label>Icoon</label><input id="ni" maxlength="2" placeholder="⭐"></div></div><label class="note">Op welke dagen?</label><select id="nd"><option value="0">Alle dagen</option><option value="1">Enkel ma–vr</option><option value="2">Enkel za–zo</option></select><div style="height:10px"></div><button class="btn" data-act="addq">Toevoegen</button>'+
  S.tasks.filter(t=>t.custom).map(t=>'<div class="cq"><span>'+esc(t.ic)+' '+esc(t.n)+'</span><button data-act="delq" data-id="'+t.id+'" aria-label="Verwijderen">✕</button></div>').join('')+'</details>'}
 function nav(p,n,label,dis){return '<div class="nav"><button data-act="'+p+'" aria-label="Vorige">‹</button><b>'+label+'</b><button data-act="'+n+'" '+(dis?'disabled':'')+' aria-label="Volgende">›</button></div>'}
 function vWeek(){const d=wDays(wOff),xs=d.map(dayXP),mx=Math.max(GOAL*1.5,...xs),f=x=>{const a=new Date(x);return a.getDate()+'/'+(a.getMonth()+1)};
  const tot=xs.reduce((a,b)=>a+b,0)+(S.bonus[d[0]]||0),hit=xs.filter(x=>x>=GOAL).length;
  return nav('wprev','wnext',f(d[0])+' – '+f(d[6]),wOff>=0)+'<div class="chart">'+d.map((k,i)=>'<div class="col"><b>'+xs[i]+'</b><div class="bw"><i class="'+(xs[i]>=GOAL?'hit':'')+'" style="height:'+(xs[i]/mx*100)+'%"></i></div>'+DN[i]+'</div>').join('')+'</div>'+
  '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald.</p><div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+'</div>'+
- S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||7;return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
+ S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||(T.days?T.days.length:7);return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
 function vMonth(){const n=today(),b=new Date(n.getFullYear(),n.getMonth()+mOff,1),y=b.getFullYear(),mo=b.getMonth(),dim=new Date(y,mo+1,0).getDate(),off=(b.getDay()+6)%7,tk=ymd(n);
  let cells=DN.map(x=>'<div class="e">'+x+'</div>').join('')+'<div class="e"></div>'.repeat(off),tot=0,hit=0,run=0,best=0,keys=[];
  for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i)),x=dayXP(k),fut=k>tk,past=k<tk&&k>=S.start;keys.push(k);tot+=x;
@@ -302,7 +306,7 @@ document.addEventListener('click',e=>{
  else if(a==='mprev'){mOff--;render()}else if(a==='mnext'){mOff++;render()}
  else if(a==='addq'){const n=document.getElementById('nq').value.trim();if(!n){toast('Geef je quest een naam');return}
   const xp=Math.max(5,Math.min(50,parseInt(document.getElementById('nx').value)||10)),f=parseInt(document.getElementById('nf').value)||0,ic=document.getElementById('ni').value.trim()||'⭐';
-  S.tasks.push({id:'c'+Date.now(),n,xp,cap:f||undefined,ic,custom:true,say:'Mooi gedaan, '+n.toLowerCase()+'! ✨'});save();SND.buy();toast('Quest toegevoegd');render()}
+  S.tasks.push({id:'c'+Date.now(),n,xp,cap:f||undefined,days:[null,[1,2,3,4,5],[0,6]][parseInt(document.getElementById('nd').value)||0]||undefined,ic,custom:true,say:'Mooi gedaan, '+n.toLowerCase()+'! ✨'});save();SND.buy();toast('Quest toegevoegd');render()}
  else if(a==='delq'){if(confirm('Deze quest verwijderen? Eerder verdiende XP blijft staan.')){S.tasks=S.tasks.filter(t=>t.id!==id);save();render()}}
  else if(a==='buy'){const i=SHOP.find(x=>x.id===id);if(S.coins<i.p){toast('Nog '+(i.p-S.coins)+' 🪙 te kort');SND.err();return}
   S.coins-=i.p;S.owned.push(id);if(i.k!=='room')S.wear[i.k]=id;save();SND.buy();render();say('Wauw, '+i.n.toLowerCase()+'! Dankjewel! '+i.ic,3000);anim('spin')}
