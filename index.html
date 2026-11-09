@@ -172,8 +172,8 @@ function line(){const m=mood(),h=today().getHours(),dw=today().getDay(),x=dayXP(
  else{
   if(x>=GOAL)L.push('Dagdoel gehaald! Ik ben zo trots! 🎉','Dat was een topdag, baas!');else L.push('Nog '+(GOAL-x)+' XP en het dagdoel is van jou!');
   if(st>=3)L.push(st+' dagen op rij! Jij bent een machine, net als ik. 🔥');
-  if(h<12)L.push('Goeiemorgen! Zullen we er een mooie dag van maken?');else if(h<18)L.push('De dag is nog lang. Tijd voor een quest?');else L.push('Nog even doorbijten voor het slapen!');
-  if(dw===1)L.push('Maandag! Frisse week, frisse start. 🚀');if(dw===5)L.push('Vrijdag! Sprint naar de finish van je week.');if(dw===0)L.push('Zondag: nog even je weekdoel afronden?');
+  if(h<12)L.push('Goeiemorgen! Zullen we er een mooie dag van maken?');else if(h<19)L.push('De dag is nog lang. Tijd voor een quest?');else L.push('Nog even doorbijten voor het slapen!');
+  if(dw===1)L.push('Maandag! Frisse week, frisse start. 🚀');if(dw===5)L.push('Vrijdag! Sprint naar de finish van je week.');if(dw===6)L.push('Toon eens hoe je aan het weekend begint.');if(dw===0)L.push('Zondag: nog even je weekdoel afronden?');
   const w=wXP();if(w>=WGOAL)L.push('Weekdoel binnen! Jij bent een legende. 🏆');else if(w>=WGOAL*.7)L.push('Bijna je weekdoel! Nog '+(WGOAL-w)+' XP.');
  }return L[Math.floor(Math.random()*L.length)]}
 const base0=()=>{base=line()};
