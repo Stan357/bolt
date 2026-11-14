@@ -94,6 +94,19 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
 .it{background:var(--card);border:2px solid transparent;border-radius:16px;padding:10px 4px;text-align:center;cursor:pointer}
 .it.on{border-color:var(--acc2)}.it b{display:block;font-size:26px;font-weight:400}.it small{display:block;font-size:12px;color:var(--mute)}
 .note{font-size:13px;color:var(--mute);margin:6px 0}
+#game,#recap{position:fixed;inset:0;z-index:50;background:var(--bg);overflow:auto;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(20px + env(safe-area-inset-bottom,0px))}
+#game[hidden],#recap[hidden]{display:none}.rep{text-align:center}.rep .big{font-size:44px;line-height:1.1}.rep p{margin:8px 0}.rep .stat{background:var(--bg)}.rep .pr{text-align:left}
+.gin{max-width:480px;margin:0 auto}
+#gboard{width:100%;display:block;border-radius:14px}#gboard .glow{transform-box:fill-box}
+.gstrip{display:flex;gap:6px;margin:8px 0}
+.gp{flex:1;background:var(--card);border-radius:14px;padding:6px 2px;text-align:center;font-size:12px;border:2px solid transparent}
+.gp.on{border-color:var(--acc)}.gp svg{width:34px;height:40px;display:block;margin:0 auto}.gp b{display:block;font-size:13px;font-weight:500}
+.gd{display:flex;align-items:center;gap:12px;margin-top:10px}
+.gdie{background:var(--card);border:0;border-radius:16px;padding:6px;cursor:pointer;flex:none}
+.gdie:disabled{opacity:.7;cursor:default}.gdie.on{animation:glow .6s ease-in-out infinite alternate}
+.gdie svg{width:64px;height:64px;display:block}
+.gmsg{font-size:15px;flex:1}.gsay{font-size:14px;color:var(--mute);margin-top:8px;min-height:64px}.gsay div{margin:2px 0}
+.rules{background:var(--card);border-radius:14px;padding:6px 14px 6px 8px;font-size:13px;margin:8px 0}.rules li{margin:6px 0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;max-width:90%;text-align:center}
 .toast.s{opacity:1}
 .reset{background:none;border:0;color:var(--mute);font-size:13px;margin-top:20px;text-decoration:underline;cursor:pointer}
@@ -122,6 +135,8 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
  <button class="reset" data-act="reset">Alles opnieuw beginnen</button>
 </main>
 <div class="toast" id="toast"></div>
+<div id="recap" hidden><div class="gin" id="rin"></div></div>
+<div id="game" hidden><div class="gin" id="gin"></div></div>
 <script>
 const DEF=[
  {id:'study',n:'Studeren (2 uur)',xp:20,ic:'📚',say:'Slim, slimmer, Bolt-slimst! 🤓'},
@@ -301,14 +316,37 @@ function vWeek(){const d=wDays(wOff),xs=d.map(dayXP),mx=Math.max(GOAL*1.5,...xs)
  return nav('wprev','wnext',f(d[0])+' – '+f(d[6]),wOff>=0)+'<div class="chart">'+d.map((k,i)=>'<div class="col"><b>'+xs[i]+'</b><div class="bw"><i class="'+(xs[i]>=GOAL?'hit':'')+'" style="height:'+(xs[i]/mx*100)+'%"></i></div>'+DN[i]+'</div>').join('')+'</div>'+
  '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald.</p><div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+'</div>'+
  S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||(T.days?T.days.length:7);return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
+function mStat(y,mo){const tk=ymd(today()),dim=new Date(y,mo+1,0).getDate();let days=0,tot=0,hit=0,run=0,best=0,bonus=0;const cnt={};
+ for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i));if(k<S.start||k>tk)continue;days++;const x=dayXP(k);tot+=x;
+  if(x>=GOAL){hit++;run++;best=Math.max(best,run)}else run=0;Object.keys(S.done[k]||{}).forEach(id=>{cnt[id]=(cnt[id]||0)+1})}
+ const pre=y+'-'+String(mo+1).padStart(2,'0');Object.keys(S.bonus).forEach(k=>{if(k.slice(0,7)===pre)bonus++});
+ return{days,tot,hit,best,bonus,cnt,pct:days?hit/days:0}}
+function rate(st){const p=st.pct;
+ return p>=.9?{e:'🏆',t:'Legendarisch!',l:'Wat een maand! Jij bent een echte kampioen, baas!',s:5}:
+ p>=.7?{e:'🌟',t:'Topmaand!',l:'Super gedaan! Bolt is supertrots op je.',s:4}:
+ p>=.5?{e:'👍',t:'Goed bezig',l:'Een stevige maand. Volgende maand gaan we nog hoger!',s:3}:
+ p>=.3?{e:'🙂',t:'Aan te sterken',l:'Niet slecht, maar er zit meer in. Ik geloof in jou!',s:2}:
+ {e:'🌱',t:'Nieuwe start',l:'Elke maand is een nieuwe kans. Samen groeien we weer!',s:1}}
+function reportHTML(y,mo,fin){const st=mStat(y,mo);if(!st.days)return '<div class="card">Voor deze maand zijn er nog geen gegevens.</div>';
+ const r=rate(st),pm=new Date(y,mo-1,1),ps=mStat(pm.getFullYear(),pm.getMonth());let cmp='';
+ if(ps.days){const d=st.tot-ps.tot;cmp='<p class="note">'+(d>=0?'📈 '+d+' XP meer':'📉 '+(-d)+' XP minder')+' dan in '+MN[pm.getMonth()]+' ('+ps.tot+' XP). Dagdoelen: '+st.hit+' tegenover '+ps.hit+'.</p>'}
+ return '<div class="card rep"><div class="big">'+r.e+'</div><h2 style="margin:4px 0">'+(fin?'Maandverslag '+MN[mo]+' '+y:MN[mo]+' tot nu toe')+'</h2><b>'+r.t+'</b> '+'⭐'.repeat(r.s)+'<p>'+r.l+'</p>'+
+ '<div class="stats"><div class="stat"><b>'+st.tot+'</b><span>XP</span></div><div class="stat"><b>'+st.hit+'/'+st.days+'</b><span>dagdoelen ('+Math.round(st.pct*100)+'%)</span></div><div class="stat"><b>'+st.best+'</b><span>beste reeks</span></div></div>'+cmp+
+ (st.bonus?'<p class="note">🏆 '+st.bonus+'x weekbonus verdiend</p>':'')+
+ S.tasks.map(T=>'<div class="pr"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><b>'+(st.cnt[T.id]||0)+'x</b></div>').join('')+'</div>'}
+function checkRecap(){const n=today(),cur=n.getFullYear()*12+n.getMonth(),sd=new Date(S.start+'T00:00:00'),fm=sd.getFullYear()*12+sd.getMonth(),m=cur-1;
+ if(m<fm){if(S.recap===undefined){S.recap=m;save()}return}
+ if(S.recap!==undefined&&S.recap>=m)return;
+ const y=Math.floor(m/12),mo=m%12,r=rate(mStat(y,mo));S.recap=m;save();
+ document.getElementById('rin').innerHTML=(r.s>=4?'<svg viewBox="0 0 200 50" style="width:100%;height:50px">'+CONF+'</svg>':'')+'<div style="text-align:center"><svg viewBox="-16 -24 32 40" style="width:64px;height:80px">'+pawnSVG(0,0,0,1.2)+'</svg></div>'+reportHTML(y,mo,true)+'<div class="acts"><button class="btn" data-act="rgo">Bekijk de kalender</button><button class="btn g" data-act="rclose">Sluiten</button></div>';
+ document.getElementById('recap').hidden=false;if(r.s>=4)SND.lvl();else SND.ok()}
 function vMonth(){const n=today(),b=new Date(n.getFullYear(),n.getMonth()+mOff,1),y=b.getFullYear(),mo=b.getMonth(),dim=new Date(y,mo+1,0).getDate(),off=(b.getDay()+6)%7,tk=ymd(n);
- let cells=DN.map(x=>'<div class="e">'+x+'</div>').join('')+'<div class="e"></div>'.repeat(off),tot=0,hit=0,run=0,best=0,keys=[];
- for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i)),x=dayXP(k),fut=k>tk,past=k<tk&&k>=S.start;keys.push(k);tot+=x;
-  if(x>=GOAL){hit++;run++;best=Math.max(best,run)}else run=0;
-  cells+='<div class="'+(x>=GOAL?'hit':fut?'fut':past?'miss':'')+(k===tk?' today':'')+'"><b>'+i+'</b>'+(x||'')+'</div>'}
- const bon=Object.keys(S.bonus).filter(k=>k.slice(0,7)===ymd(b).slice(0,7)).length;
- return nav('mprev','mnext',MN[mo]+' '+y,mOff>=0)+'<div class="cal">'+cells+'</div><div class="stats"><div class="stat"><b>'+tot+'</b><span>XP</span></div><div class="stat"><b>'+hit+'</b><span>dagdoelen</span></div><div class="stat"><b>'+best+'</b><span>beste reeks</span></div></div>'+(bon?'<p class="note">'+bon+'x weekbonus verdiend deze maand 🏆</p>':'')+
- '<h2>Quests deze maand</h2>'+S.tasks.map(T=>'<div class="card"><div class="lbl" style="margin:0"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><b>'+keys.filter(k=>S.done[k]&&S.done[k][T.id]!==undefined).length+'x</b></div></div>').join('')}
+ let cells=DN.map(x=>'<div class="e">'+x+'</div>').join('')+'<div class="e"></div>'.repeat(off);
+ for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i)),x=dayXP(k),fut=k>tk,past=k<tk&&k>=S.start;cells+='<div class="'+(x>=GOAL?'hit':fut?'fut':past?'miss':'')+(k===tk?' today':'')+'"><b>'+i+'</b>'+(x||'')+'</div>'}
+ const sd=new Date(S.start+'T00:00:00'),cm=n.getFullYear()*12+n.getMonth(),fm=sd.getFullYear()*12+sd.getMonth();
+ let hist='';for(let m=cm;m>=fm;m--){const yy=Math.floor(m/12),mm=m%12,st=mStat(yy,mm),r=rate(st);
+  hist+='<button class="q" style="'+(m===cm+mOff?'border-color:var(--acc)':'')+'" data-act="mgo" data-id="'+(m-cm)+'"><span class="ic">'+(m===cm?'⏳':r.e)+'</span><span class="t"><span>'+MN[mm]+' '+yy+'</span><small>'+st.hit+' / '+st.days+' dagdoelen'+(m===cm?' · lopend':'')+'</small></span><span class="x">'+st.tot+' XP</span></button>'}
+ return nav('mprev','mnext',MN[mo]+' '+y,mOff>=0)+reportHTML(y,mo,mOff<0)+'<h2>Kalender</h2><div class="cal">'+cells+'</div><h2>Terugblik per maand</h2>'+hist}
 function vShop(){const nx=(Math.floor(S.maxLvl/5)+1)*5,item=i=>{const o=S.owned.includes(i.id),on=S.wear[i.k]===i.id;
   return '<button class="it'+(on||(PREV&&PREV.id===i.id)?' on':'')+'" data-act="'+(o?'eq':'fit')+'" data-id="'+i.id+'"><b>'+i.ic+'</b>'+i.n+'<small>'+(i.k==='room'&&o?'in kamer ✓':o?(on?'aan ✓':'uit'):i.p+' 🪙')+'</small></button>'},
  sec=(t,k)=>'<h2>'+t+'</h2><div class="grid">'+SHOP.filter(i=>k.includes(i.k)).map(item).join('')+'</div>';
@@ -336,14 +374,140 @@ function render(){const k=ymd(today()),w=wXP(),st=streak();renderStage();
  document.getElementById('tabs').innerHTML=[['today','Vandaag'],['week','Week'],['month','Maand'],['shop','Winkel']].map(x=>'<button data-act="tab" data-id="'+x[0]+'" class="'+(tab===x[0]?'on':'')+'">'+x[1]+'</button>').join('');
  document.getElementById('view').innerHTML={today:vToday,week:vWeek,month:vMonth,shop:vShop}[tab]()}
 
+/* ===== Robot-Ludo ===== */
+const CH=[
+ {n:'Bolt',tag:'jouw maatje',c:'#e3a91f',d:'#8f6a0c',cap:['Sorry maatje! Bliep!','Hihi, terug naar je kot!'],hit:['Au, mijn wieltjes!','Hé, dat was mijn pion!'],six:['Een zes! Bliep bloep!'],win:['Bolt is kampioen! 🏆']},
+ {n:'Zap',tag:'snel en elektrisch',c:'#3f8fe0',d:'#1f568f',cap:['Zzzap! Terug naar huis!','Kortsluiting voor jou! ⚡'],hit:['Kortsluiting!','Mijn stroom!'],six:['Zes! Volt-tastisch!'],win:['Zap wint met volle batterij! ⚡']},
+ {n:'Rusty',tag:'roestig maar slim',c:'#d85a45',d:'#8f2f20',cap:['Roest in vrede, pionnetje!','Piep krak! Te slim voor je.'],hit:['Mijn schroeven!','Ik kom terug, hoor.'],six:['Een zes! Gaat als een trein.'],win:['Rusty wint! Smeer die tandwielen!']},
+ {n:'Moss',tag:'rustig en groen',c:'#4fa36a',d:'#2b6b3f',cap:['Oeps, plat gewandeld. 🌱','Terug in je potje!'],hit:['Mijn blaadjes!','Dat doet pijn aan mijn plantje.'],six:['Zes! Ik groei hard!'],win:['Moss wint! Tijd voor zonlicht. 🌻']}];
+const RULES='<div class="rules"><ul><li>Gooi een <b>6</b> om een pion op het bord te zetten. Bij een 6 mag je nog eens gooien.</li><li>Je gaat nooit over een pion heen, ook niet over je eigen. Twee eigen pionnen op één vak mag niet.</li><li>Je <b>moet</b> zetten als het kan. Kan het niet, dan is je beurt voorbij.</li><li>Een tegenstander uitschakelen kan alleen met het <b>exacte</b> aantal ogen. Hij gaat terug naar zijn kot.</li><li>Sta eerst op het omrande vak vlak voor je kot. Gooi dan 1, daarna 2, dan 3 enzovoort, steeds het volgende nummer.</li><li>De eerste pion gaat tot 6, de tweede tot 5, de derde tot 4 en de vierde tot 3. Zo win je.</li></ul></div>';
+const CS=22;
+const RING=(()=>{const a=[];for(let y=5;y>=0;y--)a.push([6,y]);a.push([7,0]);for(let y=0;y<=5;y++)a.push([8,y]);
+ for(let x=9;x<=14;x++)a.push([x,6]);a.push([14,7]);for(let x=14;x>=9;x--)a.push([x,8]);
+ for(let y=9;y<=14;y++)a.push([8,y]);a.push([7,14]);for(let y=14;y>=9;y--)a.push([6,y]);
+ for(let x=5;x>=0;x--)a.push([x,8]);a.push([0,7]);for(let x=0;x<=5;x++)a.push([x,6]);return a})();
+const ringXY=i=>RING[i];
+const startIdx=s=>7+13*s;
+const slotXY=(s,k)=>[[7,k],[14-k,7],[7,14-k],[k,7]][s];
+const YARD=[[9,0],[9,9],[0,9],[0,0]].map(([a,b])=>[[a+1.5,b+1.5],[a+3.5,b+1.5],[a+1.5,b+3.5],[a+3.5,b+3.5]]);
+const cellXY=(s,p)=>p<=51?ringXY((startIdx(s)+p)%52):slotXY(s,p-51);
+const PIPS={1:[[30,30]],2:[[18,18],[42,42]],3:[[18,18],[30,30],[42,42]],4:[[18,18],[42,18],[18,42],[42,42]],5:[[18,18],[42,18],[30,30],[18,42],[42,42]],6:[[18,16],[18,30],[18,44],[42,16],[42,30],[42,44]]};
+let G=null,gOpp=1;
+const gEl=()=>document.getElementById('gin');
+function later(fn,ms){const c=G;setTimeout(()=>{if(G&&G===c&&G.over===null)fn()},ms)}
+function pawnSVG(ci,x,y,s){const C=CH[ci],e=(a,b,r)=>'<circle cx="'+a+'" cy="'+b+'" r="'+r+'" fill="#fff" stroke="#3b3a36" stroke-width=".8"/><circle cx="'+a+'" cy="'+b+'" r="'+(r*.45)+'" fill="#26323a"/>';
+ let g='<g transform="translate('+x+' '+y+') scale('+(s||1)+')"><rect x="-8" y="6" width="16" height="4" rx="2" fill="#3b3a36"/><rect x="-7" y="-3" width="14" height="10" rx="3" fill="'+C.c+'" stroke="'+C.d+'" stroke-width="1.5"/>';
+ if(ci===0)g+='<rect x="-1" y="-5" width="2" height="3" fill="#6b6a64"/>'+e(-3.5,-7,3.2)+e(3.5,-7,3.2);
+ else if(ci===1)g+='<rect x="-1" y="-5" width="2" height="3" fill="#6b6a64"/>'+e(0,-7,4.4)+'<path d="M0 -11l-2-3h4l-2-3" stroke="#f2c94c" stroke-width="1.5" fill="none"/>';
+ else if(ci===2)g+=e(-3.5,-6,3)+e(3.5,-6,3)+'<path d="M-7 -9h14l-2-4h-10z" fill="#3b3a36"/>';
+ else g+=e(-3.5,-6,3)+e(3.5,-6,3)+'<path d="M0 -9q-2-5 4-6 0 5-4 6z" fill="#5db35a" stroke="#2b6b3f" stroke-width=".7"/>';
+ return g+'</g>'}
+function dieSVG(v,c){return '<svg viewBox="0 0 60 60"><rect x="3" y="3" width="54" height="54" rx="12" fill="#fff" stroke="'+c+'" stroke-width="4"/>'+(v?PIPS[v].map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="5" fill="#26323a"/>').join(''):'<text x="30" y="40" font-size="30" text-anchor="middle" fill="#26323a">?</text>')+'</svg>'}
+
+/* regels */
+function occRing(idx){for(const s of G.seats)for(let i=0;i<4;i++){const p=G.pr[s][i];if(p>=0&&p<=51&&(startIdx(s)+p)%52===idx)return{s,i}}return null}
+function legal(s,i,r){const p=G.pr[s][i];
+ if(p<0){if(r!==6)return null;const o=occRing(startIdx(s));if(o&&o.s===s)return null;return{to:0,cap:o}}
+ if(p>=52){const k=p-51;if(k>=6||r!==k+1||G.pr[s].includes(p+1))return null;return{to:p+1}}
+ if(p===51){if(r!==1||G.pr[s].includes(52))return null;return{to:52}}
+ if(p+r>51)return null;
+ for(let d=1;d<r;d++)if(occRing((startIdx(s)+p+d)%52))return null;
+ const o=occRing((startIdx(s)+p+r)%52);if(o&&o.s===s)return null;return{to:p+r,cap:o}}
+const won=s=>[54,55,56,57].every(v=>G.pr[s].includes(v));
+function threat(s,p){const idx=(startIdx(s)+p)%52;for(const t of G.seats){if(t===s)continue;for(const q of G.pr[t]){if(q<0||q>51)continue;const d=(idx-(startIdx(t)+q)%52+52)%52;if(d>=1&&d<=6)return true}}return false}
+function aiPick(s,ms,r){let best=ms[0],bs=-1e9;for(const i of ms){const L=legal(s,i,r),p=G.pr[s][i];let sc=Math.random()*5;
+ if(L.cap)sc+=100;if(p<0)sc+=45;if(L.to>=52)sc+=70+L.to;else if(L.to===51)sc+=35;sc+=L.to*.3;
+ if(p>=0&&p<=51&&threat(s,p))sc+=18;if(L.to<=51&&threat(s,L.to))sc-=15;
+ if(sc>bs){bs=sc;best=i}}return best}
+function glog(n,t){G.log.push({n,t});if(G.log.length>3)G.log.shift()}
+function gsay(ci,k){const c=CH[ci];glog(c.n,c[k][Math.floor(Math.random()*c[k].length)])}
+
+/* spelverloop */
+function gStart(n){if(G&&G.iv)clearInterval(G.iv);
+ G={n,seats:n===4?[0,1,2,3]:[0,2],ch:n===4?{0:0,1:1,2:2,3:3}:{0:0,2:gOpp},pr:{},ti:0,roll:0,ph:'roll',moves:[],msg:'Jouw beurt! Tik op de dobbelsteen.',log:[],over:null,rules:false,rolling:false};
+ G.seats.forEach(s=>G.pr[s]=[-1,-1,-1,-1]);SND.play();gRender()}
+function gNext(extra){if(!G||G.over!==null)return;if(!extra)G.ti=(G.ti+1)%G.seats.length;
+ const s=G.seats[G.ti];G.roll=0;G.ph='roll';G.moves=[];
+ G.msg=s===0?(extra?'Een 6! Gooi nog eens.':'Jouw beurt! Tik op de dobbelsteen.'):CH[G.ch[s]].n+' is aan de beurt…';
+ gRender();if(s!==0)later(gRoll,900)}
+function gRoll(){if(!G||G.ph!=='roll'||G.rolling||G.over!==null)return;const s=G.seats[G.ti];
+ G.rolling=true;G.ph='rolling';G.msg='Rollen…';gRender();let n=0;const c=G;
+ G.iv=setInterval(()=>{if(G!==c){clearInterval(c.iv);return}G.roll=1+Math.floor(Math.random()*6);tone(260+n*30,0,.05,'square',.05);gDice();
+  if(++n>=8){clearInterval(G.iv);G.rolling=false;G.roll=1+Math.floor(Math.random()*6);gDice();gEval(s)}},70)}
+function gDice(){const d=document.getElementById('gdice');if(d)d.innerHTML=dieSVG(G.roll,CH[G.ch[G.seats[G.ti]]].c)}
+function gEval(s){const r=G.roll,nm=CH[G.ch[s]].n;let ms=[0,1,2,3].filter(i=>legal(s,i,r));
+ ms=ms.filter((i,k)=>G.pr[s][i]>=0||ms.findIndex(j=>G.pr[s][j]<0)===k);
+ if(r===6&&s!==0&&Math.random()<.5)gsay(G.ch[s],'six');
+ if(!ms.length){G.ph='anim';G.msg=s===0?'Je gooide een '+r+'. Geen zet mogelijk, je beurt is voorbij.':nm+' gooide '+r+' en kan niet zetten.';gRender();later(()=>gNext(false),1400);return}
+ G.moves=ms;
+ if(ms.length===1||s!==0){const i=s===0?ms[0]:aiPick(s,ms,r);G.ph='anim';G.msg=(s===0?'Je gooide een ':nm+' gooide een ')+r+'.';gRender();later(()=>doMove(s,i,r),s===0?600:900)}
+ else{G.ph='pick';G.msg='Je gooide een '+r+'. Tik op een pion die mag bewegen.';gRender()}}
+function doMove(s,i,r){const L=legal(s,i,r);if(!L){gNext(false);return}
+ const from=G.pr[s][i],to=L.to;
+ const fin=()=>{
+  if(L.cap){const v=L.cap,vp=G.pr[v.s][v.i],f=cellXY(v.s,vp),y=YARD[v.s][v.i],a=CH[G.ch[s]],vc=CH[G.ch[v.s]],px=(q)=>[q[0]*CS+CS/2,q[1]*CS+CS/2];
+   G.pr[v.s][v.i]=-1;G.fly={s:v.s,i:v.i,ci:G.ch[v.s],from:px(f),to:px(y),cur:[...px(f),0]};
+   gsay(G.ch[s],'cap');gsay(G.ch[v.s],'hit');G.msg=a.n+' schakelt '+vc.n+' uit!'}
+  if(won(s)){G.over=s;gsay(G.ch[s],'win');SND.lvl();gRender();return}
+  gRender();if(G.fly)flight();later(()=>gNext(r===6),L.cap?1700:700)};
+ if(from<0){G.pr[s][i]=0;SND.ok();gRender();later(fin,500);return}
+ let k=from;const step=()=>{k++;G.pr[s][i]=k;tone(500+k*8,0,.05,'square',.04);gRender();if(k<to)later(step,130);else later(fin,200)};later(step,100)}
+
+/* tekenen */
+function gBoard(){let h='<svg viewBox="0 0 330 330" id="gboard" role="img" aria-label="Spelbord"><rect width="330" height="330" rx="14" style="fill:var(--card)"/>';
+ const Q=[[9,0],[9,9],[0,9],[0,0]],nc='style="fill:var(--wall);stroke:var(--line)" stroke-width="1"',
+ box=(x,y,c)=>'<rect x="'+(x*CS+1)+'" y="'+(y*CS+1)+'" width="'+(CS-2)+'" height="'+(CS-2)+'" rx="5" '+c+'/>';
+ G.seats.forEach(s=>{const c=CH[G.ch[s]];h+='<rect x="'+Q[s][0]*CS+'" y="'+Q[s][1]*CS+'" width="'+6*CS+'" height="'+6*CS+'" rx="16" fill="'+c.c+'" opacity=".25"/>';YARD[s].forEach(y=>{h+='<circle cx="'+(y[0]*CS+CS/2)+'" cy="'+(y[1]*CS+CS/2)+'" r="10" fill="'+c.c+'" opacity=".35"/>'})});
+ for(let i=0;i<52;i++){const [x,y]=ringXY(i);h+=box(x,y,nc)}
+ h+='<rect x="'+6*CS+'" y="'+6*CS+'" width="'+3*CS+'" height="'+3*CS+'" rx="8" style="fill:var(--wall);stroke:var(--line)"/><text x="165" y="172" font-size="18" text-anchor="middle">⭐</text>';
+ [0,1,2,3].forEach(s=>{const on=G.seats.includes(s),c=on?CH[G.ch[s]]:null;
+  if(on){const [sx,sy]=ringXY(startIdx(s)),[ex,ey]=ringXY((startIdx(s)+51)%52);
+   h+=box(sx,sy,'fill="'+c.c+'" opacity=".85"')+'<text x="'+(sx*CS+CS/2)+'" y="'+(sy*CS+CS/2+4)+'" font-size="11" text-anchor="middle" fill="#fff">★</text>'+box(ex,ey,'fill="none" stroke="'+c.c+'" stroke-width="3"')}
+  for(let k=1;k<=6;k++){const [x,y]=slotXY(s,k);h+=on?box(x,y,'fill="'+c.c+'" fill-opacity=".4" stroke="'+c.c+'" stroke-width="1.5"')+'<text x="'+(x*CS+CS/2)+'" y="'+(y*CS+CS/2+4)+'" font-size="11" text-anchor="middle" style="fill:var(--ink)">'+k+'</text>':''}});
+ const lg=new Set();if(G.ph==='pick'){G.moves.forEach(i=>lg.add(i));if(G.moves.some(i=>G.pr[0][i]<0))[0,1,2,3].forEach(i=>{if(G.pr[0][i]<0)lg.add(i)})}
+ const P=[];G.seats.forEach(s=>G.pr[s].forEach((p,i)=>{if(G.fly&&G.fly.s===s&&G.fly.i===i)return;const [x,y]=p<0?YARD[s][i]:cellXY(s,p);P.push({s,i,x:x*CS+CS/2,y:y*CS+CS/2})}));
+ P.sort((a,b)=>a.y-b.y).forEach(q=>{const can=q.s===0&&lg.has(q.i);
+  h+=(can?'<g data-act="gpick" data-i="'+q.i+'" style="cursor:pointer"><circle cx="'+q.x+'" cy="'+q.y+'" r="13" fill="none" stroke="#f2c94c" stroke-width="3" class="glow"/><circle cx="'+q.x+'" cy="'+q.y+'" r="14" fill="rgba(255,255,255,.01)"/>':'')+pawnSVG(G.ch[q.s],q.x,q.y+2,.8)+(can?'</g>':'')});
+ if(G.fly){const f=G.fly;h+='<g id="gfly" transform="translate('+f.cur[0]+' '+f.cur[1]+') rotate('+f.cur[2]+')">'+pawnSVG(f.ci,0,2,.8)+'</g>'}
+ return h+'</svg>'}
+function flight(){const f=G.fly,c=G,T=1300,t0=performance.now();
+ [0,1,2].forEach(k=>setTimeout(()=>{if(G===c)tone(750-k*170,0,.18,'triangle',.07,260)},k*400));
+ const tick=now=>{if(G!==c||!G.fly)return;const t=Math.min(1,(now-t0)/T),e=t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+  f.cur=[f.from[0]+(f.to[0]-f.from[0])*e,f.from[1]+(f.to[1]-f.from[1])*e-Math.sin(Math.PI*t)*70,e*1080];
+  const g=document.getElementById('gfly');if(g)g.setAttribute('transform','translate('+f.cur[0]+' '+f.cur[1]+') rotate('+f.cur[2]+')');
+  if(t<1)requestAnimationFrame(tick);else{G.fly=null;SND.err();gRender()}};
+ requestAnimationFrame(tick)}
+function gRender(){if(!G)return;const cur=G.seats[G.ti];
+ let h='<div class="top"><button class="ib" data-act="gclose" aria-label="Stoppen">✕</button><h1>Robot-Ludo</h1><button class="ib" data-act="grules" aria-label="Regels">ℹ️</button></div>';
+ if(G.rules)h+=RULES;
+ h+='<div class="gstrip">'+G.seats.map(s=>{const c=CH[G.ch[s]];return '<div class="gp'+(s===cur&&G.over===null?' on':'')+'"><svg viewBox="-16 -24 32 40">'+pawnSVG(G.ch[s],0,0,1.2)+'</svg><b>'+(s===0?'Jij (Bolt)':c.n)+'</b>🏠 '+G.pr[s].filter(p=>p>=52).length+'/4</div>'}).join('')+'</div>';
+ h+=gBoard()+'<div class="gsay">'+G.log.map(l=>'<div><b>'+l.n+':</b> '+l.t+'</div>').join('')+'</div>';
+ if(G.over!==null){const w=CH[G.ch[G.over]];h+='<div class="card" style="text-align:center"><svg viewBox="0 0 200 50" style="width:100%;height:50px">'+CONF+'</svg><h2 style="margin:4px 0 10px">'+(G.over===0?'🏆 Jij hebt gewonnen!':w.n+' wint!')+'</h2><div class="acts"><button class="btn" data-act="gagain">Nog eens</button><button class="btn g" data-act="gmenu">Menu</button></div></div>'}
+ else{const can=cur===0&&G.ph==='roll';h+='<div class="gd"><button class="gdie'+(can?' on':'')+'" id="gdice" data-act="groll" '+(can?'':'disabled')+' aria-label="Gooi de dobbelsteen">'+dieSVG(G.roll,CH[G.ch[cur]].c)+'</button><div class="gmsg">'+G.msg+'</div></div>'}
+ gEl().innerHTML=h}
+function gSetup(){gEl().innerHTML='<div class="top"><button class="ib" data-act="gclose" aria-label="Sluiten">✕</button><h1>Robot-Ludo</h1></div><p class="note">Speel tegen robotjes zoals Bolt. Gewoon voor het plezier, je verdient er niets mee.</p><h2>Hoeveel spelers?</h2><button class="q" data-act="gstart" data-n="2"><span class="ic">🤖🤖</span><span class="t"><span>2 spelers</span><small>Bolt tegen één robot</small></span></button><button class="q" data-act="gstart" data-n="4"><span class="ic">🤖🤖🤖🤖</span><span class="t"><span>4 spelers</span><small>Bolt tegen drie robots</small></span></button><h2>Tegenstander bij 2 spelers</h2><div class="grid">'+[1,2,3].map(i=>'<button class="it'+(gOpp===i?' on':'')+'" data-act="gopp" data-id="'+i+'"><svg viewBox="-16 -24 32 40" width="40" height="48">'+pawnSVG(i,0,0,1.2)+'</svg><b style="font-size:15px">'+CH[i].n+'</b><small>'+CH[i].tag+'</small></button>').join('')+'</div>'}
+function openGame(){if(G&&G.iv)clearInterval(G.iv);G=null;document.getElementById('game').hidden=false;gSetup()}
+function closeGame(){if(G&&G.iv)clearInterval(G.iv);G=null;document.getElementById('game').hidden=true}
+
 document.addEventListener('click',e=>{
  if(e.target.closest('#robot')){pet();return}
  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;
  if(a==='tab'){tab=id;PREV=null;render()}
  else if(a==='q')toggle(id);
- else if(a==='pet')pet();else if(a==='play')play();
+ else if(a==='pet')pet();else if(a==='play')openGame();
+ else if(a==='gclose')closeGame();
+ else if(a==='grules'){if(G){G.rules=!G.rules;gRender()}}
+ else if(a==='gopp'){gOpp=+id;gSetup()}
+ else if(a==='gstart')gStart(+b.dataset.n);
+ else if(a==='gagain')gStart(G.n);
+ else if(a==='gmenu'){if(G&&G.iv)clearInterval(G.iv);G=null;gSetup()}
+ else if(a==='groll'){if(G&&G.seats[G.ti]===0)gRoll()}
+ else if(a==='gpick'){if(!G||G.ph!=='pick')return;let i=+b.dataset.i;if(G.pr[0][i]<0){i=G.moves.find(j=>G.pr[0][j]<0);if(i===undefined)return}if(!G.moves.includes(i))return;G.ph='anim';doMove(0,i,G.roll)}
  else if(a==='snd'){S.mute=!S.mute;save();renderStage();if(!S.mute)SND.ok()}
  else if(a==='wprev'){wOff--;render()}else if(a==='wnext'){wOff++;render()}
+ else if(a==='mgo'){mOff=+id;render();document.getElementById('tabs').scrollIntoView({behavior:'smooth'})}
+ else if(a==='rclose')document.getElementById('recap').hidden=true;
+ else if(a==='rgo'){document.getElementById('recap').hidden=true;tab='month';mOff=-1;render();window.scrollTo(0,0)}
  else if(a==='mprev'){mOff--;render()}else if(a==='mnext'){mOff++;render()}
  else if(a==='addq'){const n=document.getElementById('nq').value.trim();if(!n){toast('Geef je quest een naam');return}
   const xp=Math.max(5,Math.min(50,parseInt(document.getElementById('nx').value)||10)),f=parseInt(document.getElementById('nf').value)||0,ic=document.getElementById('ni').value.trim()||'⭐';
@@ -356,7 +520,7 @@ document.addEventListener('click',e=>{
  else if(a==='eq'){const i=SHOP.find(x=>x.id===id);if(i.k==='room')return;S.wear[i.k]=S.wear[i.k]===id?undefined:id;save();SND.tap();render()}
  else if(a==='reset'){if(confirm('Alle punten, kleertjes en Bolt’s level wissen?')){try{localStorage.removeItem(KEY)}catch(x){}load();base0();render()}}
 });
-load();base0();render();
+load();base0();render();setTimeout(checkRecap,700);
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
 </script>
 </body>
