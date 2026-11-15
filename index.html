@@ -5,13 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Bolt</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#cfdadf">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#cfdadf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b2328" media="(prefers-color-scheme: dark)">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
 <style>
-:root{--bg:#cfdadf;--card:#f4f8f9;--ink:#26323a;--mute:#5d6e78;--acc:#d4a024;--acc2:#2f7d6d;--line:#b3c3ca;--wall:#e3edf0;--floor:#c3d1d7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{color-scheme:light dark;--bg:#cfdadf;--card:#f4f8f9;--ink:#26323a;--mute:#5d6e78;--acc:#d4a024;--acc2:#2f7d6d;--line:#b3c3ca;--wall:#e3edf0;--floor:#c3d1d7;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root{--bg:#1b2328;--card:#26323a;--ink:#e8eef1;--mute:#9db0ba;--line:#3b4b55;--acc:#e3b23c;--acc2:#4fb39f;--wall:#32424c;--floor:#202b32}}
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -234,7 +236,7 @@ const ROOM={
  plant:'<rect x="14" y="160" width="22" height="22" rx="3" fill="#b5653a"/><path d="M25 160v-20" stroke="#4f9a4a" stroke-width="3"/><path d="M25 146q-14-4-14-16 14 0 14 16zM25 144q14-4 14-16-14 0-14 16z" fill="#5db35a"/>',
  lamp:'<path d="M64 182v-50" stroke="#6b6a64" stroke-width="3"/><path d="M52 132h24l-5-22h-14z" fill="#f2c94c"/><ellipse cx="64" cy="184" rx="9" ry="3" fill="#6b6a64"/>',
  shelf:'<rect x="256" y="96" width="38" height="86" rx="3" fill="#8a6a3a"/><path d="M256 124h38M256 152h38" stroke="#5e4526" stroke-width="2"/><rect x="262" y="104" width="6" height="18" fill="#d4574a"/><rect x="270" y="108" width="6" height="14" fill="#4a8fd4"/><rect x="278" y="102" width="6" height="20" fill="#4fa36a"/><rect x="262" y="134" width="22" height="16" fill="#f2c94c"/>'};
-const SPD='<g class="slide"><path d="M8 90h24M4 110h26M10 130h22" stroke="var(--mute)" stroke-width="3" stroke-linecap="round"/></g>';
+const SPD='<g class="slide"><path d="M8 90h24M4 110h26M10 130h22" stroke="#8a9aa3" stroke-width="3" stroke-linecap="round"/></g>';
 const CONF=[...Array(10)].map((_,i)=>'<g class="fall" style="animation-delay:'+(i*.14).toFixed(2)+'s"><rect x="'+(14+i*18)+'" y="'+(4+(i%3)*12)+'" width="5" height="8" fill="'+['#e0539a','#f2c94c','#6bb6e8','#5db35a','#d94f4f'][i%5]+'"/></g>').join('');
 const WH=(x)=>'<g class="rot"><circle cx="'+x+'" cy="166" r="21" fill="none" stroke="#26323a" stroke-width="4"/><path d="M'+x+' 145v42M'+(x-21)+' 166h42M'+(x-15)+' 151l30 30M'+(x+15)+' 151l-30 30" stroke="#8a969c" stroke-width="1.5"/></g>';
 const ARM='stroke="#6b6a64" stroke-width="7" fill="none" stroke-linecap="round"';
