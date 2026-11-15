@@ -80,7 +80,7 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
 .nav button{background:var(--card);border:0;border-radius:12px;width:40px;height:34px;cursor:pointer;font-size:18px}
 .nav button:disabled{opacity:.3}
 .chart{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;background:var(--card);border-radius:16px;padding:12px 8px 8px;position:relative}
-.col{text-align:center;font-size:12px;color:var(--mute)}.col b{display:block;color:var(--ink);font-size:13px}
+.col{text-align:center;font-size:12px;color:var(--mute)}button.col{background:none;border:0;padding:0;font:inherit;font-size:12px;cursor:pointer}.col.sel{outline:2px solid var(--acc);border-radius:8px}.col b{display:block;color:var(--ink);font-size:13px}
 .bw{height:90px;background:var(--bg);border-radius:8px;display:flex;align-items:flex-end;overflow:hidden}
 .bw i{width:100%;background:var(--line);border-radius:8px 8px 0 0}.bw i.hit{background:var(--acc2)}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
@@ -167,7 +167,7 @@ const addD=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
 const monday=d=>addD(d,-((d.getDay()+6)%7));
 const today=()=>new Date();
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let S,HE=false,PREV=null,tab='today',wOff=0,mOff=0,FX=null,ft,bub=null,bt,base='';
+let S,wSel=null,HE=false,PREV=null,tab='today',wOff=0,mOff=0,FX=null,ft,bub=null,bt,base='';
 function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
  if(!S||!S.done)S={start:ymd(today()),done:{},bonus:{},maxLvl:1};
  S.bonus=S.bonus||{};S.maxLvl=S.maxLvl||1;
@@ -185,7 +185,10 @@ const total=()=>Object.keys(S.done).reduce((a,k)=>a+dayXP(k),0)+Object.values(S.
 const lvlOf=t=>Math.floor(Math.sqrt(t/40))+1;
 const okDay=(T,d)=>!T.days||T.days.includes((d||today()).getDay());
 const wkEnd=()=>[0,6].includes(today().getDay());
-const xmult=()=>(1+Math.min(streak(),10)*.05)*(wkEnd()?1.5:1);
+function streakBefore(d){let x=addD(d,-1),n=0;while(ymd(x)>=S.start&&dayXP(ymd(x))>=GOAL){n++;x=addD(x,-1)}return n}
+function xmultAt(d){const st=ymd(d)===ymd(today())?streak():streakBefore(d);return (1+Math.min(st,10)*.05)*([0,6].includes(d.getDay())?1.5:1)}
+const wo=d=>Math.round((monday(d)-monday(today()))/(7*864e5));
+const xmult=()=>xmultAt(today());
 const mood=()=>{const m=misses();return m===0?0:m<=2?1:m<=4?2:3};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('s');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.remove('s'),2400)}
 
@@ -285,18 +288,18 @@ function robot(m){
  return r+'</g></g></g></svg>'}
 
 /* spelen: quest afvinken */
-function toggle(id){
- const k=ymd(today()),T=S.tasks.find(t=>t.id===id);if(!T)return;S.done[k]=S.done[k]||{};
- if(S.done[k][id]!==undefined){delete S.done[k][id];SND.undo()}
+function toggle(id,dk){
+ const k=dk||ymd(today()),dt=new Date(k+'T00:00:00'),isT=k===ymd(today()),o=wo(dt),T=S.tasks.find(t=>t.id===id);if(!T)return;S.done[k]=S.done[k]||{};
+ if(S.done[k][id]!==undefined){delete S.done[k][id];SND.undo();if(!isT)toast('Aangepast: '+T.n+' weggehaald')}
  else{
-  if(!okDay(T)){toast(T.n+': alleen '+(T.days.includes(1)?'van maandag tot vrijdag':'in het weekend'));SND.err();return}
-  if(T.cap&&wCount(id)>=T.cap){toast(T.n+': weekdoel van '+T.cap+'x is al gehaald');SND.err();return}
-  const mult=xmult();S.done[k][id]=Math.round(T.xp*mult);SND.ok();
+  if(!okDay(T,dt)){toast(T.n+': alleen '+(T.days.includes(1)?'van maandag tot vrijdag':'in het weekend'));SND.err();return}
+  if(T.cap&&wCount(id,o)>=T.cap){toast(T.n+': weekdoel van '+T.cap+'x is al gehaald');SND.err();return}
+  const mult=xmultAt(dt);S.done[k][id]=Math.round(T.xp*mult);SND.ok();
   toast('+'+S.done[k][id]+' XP'+(mult>1?' (bonus x'+mult.toFixed(2)+')':''));
-  FX=FXD[id]?id:'x';clearTimeout(ft);ft=setTimeout(()=>{FX=null;renderStage()},3500);
-  setTimeout(()=>{say(T.say||'Mooi gedaan! ✨',3500);anim(FX==='run'||FX==='bike'?'dash':'jump')},60);
+  if(isT){FX=FXD[id]?id:'x';clearTimeout(ft);ft=setTimeout(()=>{FX=null;renderStage()},3500);
+  setTimeout(()=>{say(T.say||'Mooi gedaan! ✨',3500);anim(FX==='run'||FX==='bike'?'dash':'jump')},60)}
  }
- const wk=wDays()[0],wb=wDays().reduce((a,d)=>a+dayXP(d),0);
+ const wk=wDays(o)[0],wb=wDays(o).reduce((a,d)=>a+dayXP(d),0);
  if(wb>=WGOAL&&!S.bonus[wk]){S.bonus[wk]=BONUS;SND.lvl();toast('Weekdoel gehaald! +'+BONUS+' XP bonus 🎉')}
  else if(wb<WGOAL&&S.bonus[wk])delete S.bonus[wk];
  const l=lvlOf(total());
@@ -311,10 +314,13 @@ function vToday(){const k=ymd(today()),mult=xmult();
  '<details class="add"><summary>＋ Eigen quest toevoegen</summary><input id="nq" maxlength="30" placeholder="Naam, bijvoorbeeld water drinken"><div class="row"><div><label>XP</label><input id="nx" type="number" min="5" max="50" value="10"></div><div><label>Hoe vaak</label><select id="nf"><option value="0">elke dag</option>'+[1,2,3,4,5,6,7].map(i=>'<option value="'+i+'">'+i+'x per week</option>').join('')+'</select></div><div><label>Icoon</label><input id="ni" maxlength="2" placeholder="⭐"></div></div><label class="note">Op welke dagen?</label><select id="nd"><option value="0">Alle dagen</option><option value="1">Enkel ma–vr</option><option value="2">Enkel za–zo</option></select><div style="height:10px"></div><button class="btn" data-act="addq">Toevoegen</button>'+
  S.tasks.filter(t=>t.custom).map(t=>'<div class="cq"><span>'+esc(t.ic)+' '+esc(t.n)+'</span><button data-act="delq" data-id="'+t.id+'" aria-label="Verwijderen">✕</button></div>').join('')+'</details>'}
 function nav(p,n,label,dis){return '<div class="nav"><button data-act="'+p+'" aria-label="Vorige">‹</button><b>'+label+'</b><button data-act="'+n+'" '+(dis?'disabled':'')+' aria-label="Volgende">›</button></div>'}
+function vDayEdit(){if(!wSel)return '';const dt=new Date(wSel+'T00:00:00'),k=wSel,o=wo(dt),mult=xmultAt(dt),N=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+ return '<h2>Aanpassen: '+N[dt.getDay()]+' '+dt.getDate()+'/'+(dt.getMonth()+1)+'</h2>'+S.tasks.map(T=>{const on=S.done[k]&&S.done[k][T.id]!==undefined,off=!on&&!okDay(T,dt);
+  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="qd" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id,o)+' / '+T.cap+' die week':'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+'<p class="note">Die dag: '+dayXP(k)+' XP. Tik op een quest om hem aan of uit te zetten.</p>'}
 function vWeek(){const d=wDays(wOff),xs=d.map(dayXP),mx=Math.max(GOAL*1.5,...xs),f=x=>{const a=new Date(x);return a.getDate()+'/'+(a.getMonth()+1)};
  const tot=xs.reduce((a,b)=>a+b,0)+(S.bonus[d[0]]||0),hit=xs.filter(x=>x>=GOAL).length;
- return nav('wprev','wnext',f(d[0])+' – '+f(d[6]),wOff>=0)+'<div class="chart">'+d.map((k,i)=>'<div class="col"><b>'+xs[i]+'</b><div class="bw"><i class="'+(xs[i]>=GOAL?'hit':'')+'" style="height:'+(xs[i]/mx*100)+'%"></i></div>'+DN[i]+'</div>').join('')+'</div>'+
- '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald.</p><div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+'</div>'+
+ return nav('wprev','wnext',f(d[0])+' – '+f(d[6]),wOff>=0)+'<div class="chart">'+d.map((k,i)=>'<button class="col'+(k===wSel?' sel':'')+'" data-act="wday" data-id="'+k+'"><b>'+xs[i]+'</b><div class="bw"><i class="'+(xs[i]>=GOAL?'hit':'')+'" style="height:'+(xs[i]/mx*100)+'%"></i></div>'+DN[i]+'</button>').join('')+'</div>'+
+ '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald. Tik op een dag om iets aan te passen dat je vergeten was.</p>'+vDayEdit()+'<div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+'</div>'+
  S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||(T.days?T.days.length:7);return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
 function mStat(y,mo){const tk=ymd(today()),dim=new Date(y,mo+1,0).getDate();let days=0,tot=0,hit=0,run=0,best=0,bonus=0;const cnt={};
  for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i));if(k<S.start||k>tk)continue;days++;const x=dayXP(k);tot+=x;
@@ -492,7 +498,7 @@ function closeGame(){if(G&&G.iv)clearInterval(G.iv);G=null;document.getElementBy
 document.addEventListener('click',e=>{
  if(e.target.closest('#robot')){pet();return}
  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,id=b.dataset.id;
- if(a==='tab'){tab=id;PREV=null;render()}
+ if(a==='tab'){tab=id;PREV=null;wSel=null;render()}
  else if(a==='q')toggle(id);
  else if(a==='pet')pet();else if(a==='play')openGame();
  else if(a==='gclose')closeGame();
@@ -504,7 +510,9 @@ document.addEventListener('click',e=>{
  else if(a==='groll'){if(G&&G.seats[G.ti]===0)gRoll()}
  else if(a==='gpick'){if(!G||G.ph!=='pick')return;let i=+b.dataset.i;if(G.pr[0][i]<0){i=G.moves.find(j=>G.pr[0][j]<0);if(i===undefined)return}if(!G.moves.includes(i))return;G.ph='anim';doMove(0,i,G.roll)}
  else if(a==='snd'){S.mute=!S.mute;save();renderStage();if(!S.mute)SND.ok()}
- else if(a==='wprev'){wOff--;render()}else if(a==='wnext'){wOff++;render()}
+ else if(a==='wprev'){wOff--;wSel=null;render()}else if(a==='wnext'){wOff++;wSel=null;render()}
+ else if(a==='wday'){if(id>ymd(today())){toast('Die dag is nog niet geweest');return}if(id<S.start){toast('Dat is voor je startdatum');return}wSel=wSel===id?null:id;render()}
+ else if(a==='qd'){if(wSel)toggle(id,wSel)}
  else if(a==='mgo'){mOff=+id;render();document.getElementById('tabs').scrollIntoView({behavior:'smooth'})}
  else if(a==='rclose')document.getElementById('recap').hidden=true;
  else if(a==='rgo'){document.getElementById('recap').hidden=true;tab='month';mOff=-1;render();window.scrollTo(0,0)}
