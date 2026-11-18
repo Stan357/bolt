@@ -124,6 +124,7 @@ h2{font-size:17px;margin:18px 0 8px;font-weight:600}
   <div class="acts"><button class="btn" data-act="pet">🤗 Aaien</button><button class="btn g" data-act="play">🎮 Speel</button></div>
   <div class="lbl"><span>Level <b id="lv"></b> <span id="evo"></span></span><span id="xpn"></span></div>
   <div class="bar"><i id="lvbar"></i></div>
+  <div class="note" id="mood"></div>
  </div>
  <div class="stats">
   <div class="stat"><b id="sStreak">0</b><span>dagen streak</span></div>
@@ -172,7 +173,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',
 let S,wSel=null,HE=false,PREV=null,tab='today',wOff=0,mOff=0,FX=null,ft,bub=null,bt,base='';
 function load(){try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){S=null}
  if(!S||!S.done)S={start:ymd(today()),done:{},bonus:{},maxLvl:1};
- S.bonus=S.bonus||{};S.maxLvl=S.maxLvl||1;
+ S.bonus=S.bonus||{};S.pbonus=S.pbonus||{};S.maxLvl=S.maxLvl||1;
  if(S.coins===undefined)S.coins=(S.maxLvl-1)*15+Math.floor(S.maxLvl/5)*60;
  S.tasks=S.tasks||DEF.map(t=>({...t}));S.tasks.forEach(t=>{if(NS[t.id])t.say=NS[t.id];if(t.id==='class'&&!t.days)t.days=[1,2,3,4,5];if(t.id==='bike'&&!t.days)t.days=[0,6]});S.owned=S.owned||[];S.wear=S.wear||{};S.mute=!!S.mute}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
@@ -182,13 +183,16 @@ function streak(){let d=today();if(dayXP(ymd(d))<GOAL)d=addD(d,-1);let n=0;
 function misses(){let n=0;for(let i=1;i<=7;i++){const k=ymd(addD(today(),-i));if(k>=S.start&&dayXP(k)<GOAL)n++}return n}
 const wDays=o=>{const m=addD(monday(today()),7*(o||0));return [...Array(7)].map((_,i)=>ymd(addD(m,i)))};
 const wCount=(id,o)=>wDays(o).filter(k=>S.done[k]&&S.done[k][id]!==undefined).length;
-const wXP=()=>wDays().reduce((a,k)=>a+dayXP(k),0)+(S.bonus[wDays()[0]]||0);
-const total=()=>Object.keys(S.done).reduce((a,k)=>a+dayXP(k),0)+Object.values(S.bonus).reduce((a,b)=>a+b,0);
+const wXP=()=>wDays().reduce((a,k)=>a+dayXP(k),0)+(S.bonus[wDays()[0]]||0)+(S.pbonus[wDays()[0]]||0);
+const total=()=>Object.keys(S.done).reduce((a,k)=>a+dayXP(k),0)+Object.values(S.bonus).reduce((a,b)=>a+b,0)+Object.values(S.pbonus).reduce((a,b)=>a+b,0);
 const lvlOf=t=>Math.floor(Math.sqrt(t/40))+1;
 const okDay=(T,d)=>!T.days||T.days.includes((d||today()).getDay());
 const wkEnd=()=>[0,6].includes(today().getDay());
 function streakBefore(d){let x=addD(d,-1),n=0;while(ymd(x)>=S.start&&dayXP(ymd(x))>=GOAL){n++;x=addD(x,-1)}return n}
 function xmultAt(d){const st=ymd(d)===ymd(today())?streak():streakBefore(d);return (1+Math.min(st,10)*.05)*([0,6].includes(d.getDay())?1.5:1)}
+const PB=100,goalOf=T=>T.cap||(T.days?T.days.length:7);
+function pwInfo(o){const n=S.tasks.length,d=S.tasks.filter(T=>wCount(T.id,o)>=goalOf(T)).length;return{n,d,ok:n>0&&d===n}}
+function pwText(o){o=o||0;const i=pwInfo(o);return '🏅 Perfecte week: '+i.d+' van '+i.n+' doelen gehaald'+(S.pbonus[wDays(o)[0]]?' · bonus +'+PB+' XP binnen!':' · haal ze allemaal voor +'+PB+' XP')}
 const wo=d=>Math.round((monday(d)-monday(today()))/(7*864e5));
 const xmult=()=>xmultAt(today());
 const mood=()=>{const m=misses();return m===0?0:m<=2?1:m<=4?2:3};
@@ -265,7 +269,7 @@ function robot(m){
  if(st>=1)r+='<path d="M120 98v-12" stroke="#6b6a64" stroke-width="3"/><circle cx="120" cy="84" r="4.5" fill="#e0533d"/>';
  if(st>=2)r+='<rect x="44" y="90" width="26" height="8" rx="2" fill="#2a4d8f" stroke="#9db7e0"/><rect x="130" y="90" width="26" height="8" rx="2" fill="#2a4d8f" stroke="#9db7e0"/>';
  for(const x of [52,106]){const c=x+21;r+='<rect x="'+x+'" y="38" width="42" height="38" rx="19" fill="#e6ecef" stroke="#3b3a36" stroke-width="3"/><g class="look"><circle cx="'+c+'" cy="'+(58+dy)+'" r="'+(m===0?11:10)+'" fill="#26323a"/><circle cx="'+(c-3)+'" cy="'+(55+dy)+'" r="3.5" fill="#fff"/><circle cx="'+(c+3)+'" cy="'+(61+dy)+'" r="1.8" fill="#fff"/></g><rect class="blink" x="'+x+'" y="38" width="42" height="38" rx="19" fill="'+bc+'" stroke="#3b3a36" stroke-width="3"/>'+(HE?'<rect x="'+x+'" y="38" width="42" height="38" rx="19" fill="'+bc+'" stroke="#3b3a36" stroke-width="3"/><path d="M'+(x+9)+' 60q12-16 24 0" stroke="#26323a" stroke-width="5" fill="none" stroke-linecap="round"/>':'')}
- if(m>0)r+='<polygon points="50,36 96,36 96,'+(44+lid*.3)+' 50,'+(50+lid*.9)+'" fill="'+bc+'"/><polygon points="104,36 150,36 150,'+(50+lid*.9)+' 104,'+(44+lid*.3)+'" fill="'+bc+'"/>';
+ if(m>0)r+='<polygon points="50,36 96,36 96,'+(40+lid*.15)+' 50,'+(44+lid*.55)+'" fill="'+bc+'"/><polygon points="104,36 150,36 150,'+(44+lid*.55)+' 104,'+(40+lid*.15)+'" fill="'+bc+'"/><path d="M54 '+(33+m)+'L92 '+(25-m*1.5)+'M146 '+(33+m)+'L108 '+(25-m*1.5)+'" stroke="#3b3a36" stroke-width="4" stroke-linecap="round"/>';
  if(m>=2)r+='<path d="M64 84q-5 9 0 12 5-3 0-12z" fill="#6bb6e8"/>';
  const h=w.hat,e=w.eyes,n=w.neck;
  if(h==='cap')r+='<path d="M58 38a42 26 0 0 1 84 0z" fill="#d94f4f"/><rect x="58" y="36" width="96" height="5" rx="2" fill="#a83a3a"/>';
@@ -295,7 +299,7 @@ function toggle(id,dk){
  if(S.done[k][id]!==undefined){delete S.done[k][id];SND.undo();if(!isT)toast('Aangepast: '+T.n+' weggehaald')}
  else{
   if(!okDay(T,dt)){toast(T.n+': alleen '+(T.days.includes(1)?'van maandag tot vrijdag':'in het weekend'));SND.err();return}
-  if(T.cap&&wCount(id,o)>=T.cap){toast(T.n+': weekdoel van '+T.cap+'x is al gehaald');SND.err();return}
+  
   const mult=xmultAt(dt);S.done[k][id]=Math.round(T.xp*mult);SND.ok();
   toast('+'+S.done[k][id]+' XP'+(mult>1?' (bonus x'+mult.toFixed(2)+')':''));
   if(isT){FX=FXD[id]?id:'x';clearTimeout(ft);ft=setTimeout(()=>{FX=null;renderStage()},3500);
@@ -304,6 +308,8 @@ function toggle(id,dk){
  const wk=wDays(o)[0],wb=wDays(o).reduce((a,d)=>a+dayXP(d),0);
  if(wb>=WGOAL&&!S.bonus[wk]){S.bonus[wk]=BONUS;SND.lvl();toast('Weekdoel gehaald! +'+BONUS+' XP bonus 🎉')}
  else if(wb<WGOAL&&S.bonus[wk])delete S.bonus[wk];
+ if(pwInfo(o).ok&&!S.pbonus[wk]){S.pbonus[wk]=PB;SND.lvl();toast('Perfecte week! Alle doelen gehaald. +'+PB+' XP 🏅')}
+ else if(!pwInfo(o).ok&&S.pbonus[wk])delete S.pbonus[wk];
  const l=lvlOf(total());
  while(l>S.maxLvl){S.maxLvl++;S.coins+=15;let t='Level '+S.maxLvl+'! +15 🪙';if(S.maxLvl%5===0){S.coins+=60;t='Evolutie! Bolt is gegroeid. +75 🪙'}
   setTimeout(()=>{SND.lvl();toast(t);hearts();anim('spin')},400)}
@@ -312,23 +318,23 @@ function toggle(id,dk){
 /* views */
 function vToday(){const k=ymd(today()),mult=xmult();
  return '<h2>Quests van vandaag</h2>'+(wkEnd()?'<div class="card">🎉 Weekendbonus: al je XP telt vandaag x1,5.</div>':'')+S.tasks.map(T=>{const on=S.done[k]&&S.done[k][T.id]!==undefined,off=!on&&!okDay(T);
-  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="q" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id)+' / '+T.cap+' deze week':T.days?(T.days.includes(1)?'elke werkdag':'elk weekend'):'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+
- '<details class="add"><summary>＋ Eigen quest toevoegen</summary><input id="nq" maxlength="30" placeholder="Naam, bijvoorbeeld water drinken"><div class="row"><div><label>XP</label><input id="nx" type="number" min="5" max="50" value="10"></div><div><label>Hoe vaak</label><select id="nf"><option value="0">elke dag</option>'+[1,2,3,4,5,6,7].map(i=>'<option value="'+i+'">'+i+'x per week</option>').join('')+'</select></div><div><label>Icoon</label><input id="ni" maxlength="2" placeholder="⭐"></div></div><label class="note">Op welke dagen?</label><select id="nd"><option value="0">Alle dagen</option><option value="1">Enkel ma–vr</option><option value="2">Enkel za–zo</option></select><div style="height:10px"></div><button class="btn" data-act="addq">Toevoegen</button>'+
+  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="q" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id)+' / '+T.cap+' deze week'+(wCount(T.id)>=T.cap?' ✅':''):T.days?(T.days.includes(1)?'elke werkdag':'elk weekend'):'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+
+ '<p class="note">'+pwText()+'</p><details class="add"><summary>＋ Eigen quest toevoegen</summary><input id="nq" maxlength="30" placeholder="Naam, bijvoorbeeld water drinken"><div class="row"><div><label>XP</label><input id="nx" type="number" min="5" max="50" value="10"></div><div><label>Hoe vaak</label><select id="nf"><option value="0">elke dag</option>'+[1,2,3,4,5,6,7].map(i=>'<option value="'+i+'">'+i+'x per week</option>').join('')+'</select></div><div><label>Icoon</label><input id="ni" maxlength="2" placeholder="⭐"></div></div><label class="note">Op welke dagen?</label><select id="nd"><option value="0">Alle dagen</option><option value="1">Enkel ma–vr</option><option value="2">Enkel za–zo</option></select><div style="height:10px"></div><button class="btn" data-act="addq">Toevoegen</button>'+
  S.tasks.filter(t=>t.custom).map(t=>'<div class="cq"><span>'+esc(t.ic)+' '+esc(t.n)+'</span><button data-act="delq" data-id="'+t.id+'" aria-label="Verwijderen">✕</button></div>').join('')+'</details>'}
 function nav(p,n,label,dis){return '<div class="nav"><button data-act="'+p+'" aria-label="Vorige">‹</button><b>'+label+'</b><button data-act="'+n+'" '+(dis?'disabled':'')+' aria-label="Volgende">›</button></div>'}
 function vDayEdit(){if(!wSel)return '';const dt=new Date(wSel+'T00:00:00'),k=wSel,o=wo(dt),mult=xmultAt(dt),N=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
  return '<h2>Aanpassen: '+N[dt.getDay()]+' '+dt.getDate()+'/'+(dt.getMonth()+1)+'</h2>'+S.tasks.map(T=>{const on=S.done[k]&&S.done[k][T.id]!==undefined,off=!on&&!okDay(T,dt);
-  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="qd" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id,o)+' / '+T.cap+' die week':'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+'<p class="note">Die dag: '+dayXP(k)+' XP. Tik op een quest om hem aan of uit te zetten.</p>'}
+  return '<button class="q'+(on?' on':'')+(off?' off':'')+'" data-act="qd" data-id="'+T.id+'"><span class="ic">'+esc(T.ic)+'</span><span class="t"><span>'+esc(T.n)+'</span><small>'+(off?(T.days.includes(1)?'alleen ma–vr':'alleen za–zo'):T.cap?wCount(T.id,o)+' / '+T.cap+' die week'+(wCount(T.id,o)>=T.cap?' ✅':''):'elke dag')+'</small></span><span class="x">'+(off?'–':'+'+(on?S.done[k][T.id]:Math.round(T.xp*mult))+' XP')+'</span></button>'}).join('')+'<p class="note">Die dag: '+dayXP(k)+' XP. Tik op een quest om hem aan of uit te zetten.</p>'}
 function vWeek(){const d=wDays(wOff),xs=d.map(dayXP),mx=Math.max(GOAL*1.5,...xs),f=x=>{const a=new Date(x);return a.getDate()+'/'+(a.getMonth()+1)};
- const tot=xs.reduce((a,b)=>a+b,0)+(S.bonus[d[0]]||0),hit=xs.filter(x=>x>=GOAL).length;
+ const tot=xs.reduce((a,b)=>a+b,0)+(S.bonus[d[0]]||0)+(S.pbonus[d[0]]||0),hit=xs.filter(x=>x>=GOAL).length;
  return nav('wprev','wnext',f(d[0])+' – '+f(d[6]),wOff>=0)+'<div class="chart">'+d.map((k,i)=>'<button class="col'+(k===wSel?' sel':'')+'" data-act="wday" data-id="'+k+'"><b>'+xs[i]+'</b><div class="bw"><i class="'+(xs[i]>=GOAL?'hit':'')+'" style="height:'+(xs[i]/mx*100)+'%"></i></div>'+DN[i]+'</button>').join('')+'</div>'+
- '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald. Tik op een dag om iets aan te passen dat je vergeten was.</p>'+vDayEdit()+'<div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+'</div>'+
- S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||(T.days?T.days.length:7);return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
-function mStat(y,mo){const tk=ymd(today()),dim=new Date(y,mo+1,0).getDate();let days=0,tot=0,hit=0,run=0,best=0,bonus=0;const cnt={};
+ '<p class="note">Groene balk = dagdoel van '+GOAL+' XP gehaald. Tik op een dag om iets aan te passen dat je vergeten was.</p>'+vDayEdit()+'<div class="card"><b>'+tot+' XP</b> deze week, '+hit+' van 7 dagen dagdoel gehaald'+(S.bonus[d[0]]?' · weekbonus binnen 🏆':'')+(S.pbonus[d[0]]?' · perfecte week 🏅':'')+'</div>'+
+ '<div class="card">'+pwText(wOff)+'</div>'+S.tasks.map(T=>{const c=wCount(T.id,wOff),g=T.cap||(T.days?T.days.length:7);return '<div class="card"><div class="lbl" style="margin:0 0 6px"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><span>'+c+' / '+g+(c>=g?' ✅':'')+'</span></div><div class="bar g"><i style="width:'+Math.min(100,c/g*100)+'%"></i></div></div>'}).join('')}
+function mStat(y,mo){const tk=ymd(today()),dim=new Date(y,mo+1,0).getDate();let days=0,tot=0,hit=0,run=0,best=0,bonus=0,perfect=0;const cnt={};
  for(let i=1;i<=dim;i++){const k=ymd(new Date(y,mo,i));if(k<S.start||k>tk)continue;days++;const x=dayXP(k);tot+=x;
   if(x>=GOAL){hit++;run++;best=Math.max(best,run)}else run=0;Object.keys(S.done[k]||{}).forEach(id=>{cnt[id]=(cnt[id]||0)+1})}
- const pre=y+'-'+String(mo+1).padStart(2,'0');Object.keys(S.bonus).forEach(k=>{if(k.slice(0,7)===pre)bonus++});
- return{days,tot,hit,best,bonus,cnt,pct:days?hit/days:0}}
+ const pre=y+'-'+String(mo+1).padStart(2,'0');Object.keys(S.bonus).forEach(k=>{if(k.slice(0,7)===pre)bonus++});Object.keys(S.pbonus).forEach(k=>{if(k.slice(0,7)===pre)perfect++});
+ return{days,tot,hit,best,bonus,perfect,cnt,pct:days?hit/days:0}}
 function rate(st){const p=st.pct;
  return p>=.9?{e:'🏆',t:'Legendarisch!',l:'Wat een maand! Jij bent een echte kampioen, baas!',s:5}:
  p>=.7?{e:'🌟',t:'Topmaand!',l:'Super gedaan! Bolt is supertrots op je.',s:4}:
@@ -340,7 +346,7 @@ function reportHTML(y,mo,fin){const st=mStat(y,mo);if(!st.days)return '<div clas
  if(ps.days){const d=st.tot-ps.tot;cmp='<p class="note">'+(d>=0?'📈 '+d+' XP meer':'📉 '+(-d)+' XP minder')+' dan in '+MN[pm.getMonth()]+' ('+ps.tot+' XP). Dagdoelen: '+st.hit+' tegenover '+ps.hit+'.</p>'}
  return '<div class="card rep"><div class="big">'+r.e+'</div><h2 style="margin:4px 0">'+(fin?'Maandverslag '+MN[mo]+' '+y:MN[mo]+' tot nu toe')+'</h2><b>'+r.t+'</b> '+'⭐'.repeat(r.s)+'<p>'+r.l+'</p>'+
  '<div class="stats"><div class="stat"><b>'+st.tot+'</b><span>XP</span></div><div class="stat"><b>'+st.hit+'/'+st.days+'</b><span>dagdoelen ('+Math.round(st.pct*100)+'%)</span></div><div class="stat"><b>'+st.best+'</b><span>beste reeks</span></div></div>'+cmp+
- (st.bonus?'<p class="note">🏆 '+st.bonus+'x weekbonus verdiend</p>':'')+
+ (st.bonus?'<p class="note">🏆 '+st.bonus+'x weekbonus verdiend</p>':'')+(st.perfect?'<p class="note">🏅 '+st.perfect+'x perfecte week</p>':'')+
  S.tasks.map(T=>'<div class="pr"><span>'+esc(T.ic)+' '+esc(T.n)+'</span><b>'+(st.cnt[T.id]||0)+'x</b></div>').join('')+'</div>'}
 function checkRecap(){const n=today(),cur=n.getFullYear()*12+n.getMonth(),sd=new Date(S.start+'T00:00:00'),fm=sd.getFullYear()*12+sd.getMonth(),m=cur-1;
  if(m<fm){if(S.recap===undefined){S.recap=m;save()}return}
@@ -363,6 +369,7 @@ function vShop(){const nx=(Math.floor(S.maxLvl/5)+1)*5,item=i=>{const o=S.owned.
 /* render */
 function renderStage(){const t=total(),lv=S.maxLvl,lo=40*(lv-1)**2,hi=40*lv*lv;
  document.getElementById('robot').innerHTML=robot(mood());
+ const mi=misses();document.getElementById('mood').textContent=mi===0?'😊 Bolt is blij: geen gemiste dagen in de laatste 7 dagen.':'Bolt kijkt '+(mood()>=2?'verdrietig':'bezorgd')+': je miste '+mi+(mi===1?' dag':' dagen')+' in de laatste 7. Pas een vergeten dag aan bij Week, of haal je dagdoel weer.';
  const pi=PREV&&SHOP.find(x=>x.id===PREV.id);
  document.getElementById('fit').innerHTML=pi?'<span>👀 Passen: '+pi.ic+' '+pi.n+' · '+pi.p+' 🪙</span><span><button class="btn" data-act="buy" data-id="'+pi.id+'">Kopen</button> <button class="btn g" data-act="close" aria-label="Sluiten">✕</button></span>':'';
  document.getElementById('say').textContent=bub||base;
